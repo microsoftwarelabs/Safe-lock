@@ -16,4 +16,11 @@ function button4Function() {
 
 function button5Function() {
 	console.log('Button 5 clicked');
+	ws = new WebSocket("ws://localhost:8000/practice");
+	ws.onmessage = (data) => console.log(data.data);
+	ws.onopen = () => {
+		ws.send("PING");	
+	}
 }
+
+

@@ -26,12 +26,14 @@ SECRET_KEY = 'django-insecure-8mqq6(y5u&59^ir@#jmx%bo6k3&qjq7!wd*k^^fisbr&3lx9jw
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1','localhost']
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
+    'channels',
     'safelock',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -52,6 +54,13 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'safelock.urls'
+# CHANNELS_URLCONF = 'mysite.urls_channels' # new one
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 TEMPLATES = [
     {
@@ -72,6 +81,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'safelock.wsgi.application'
+ASGI_APPLICATION = 'safelock.asgi.application'
+
 
 
 # Database
