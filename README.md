@@ -2,10 +2,10 @@
 Blockchain-based online chat application
 aplicativo de chat online baseado em blockchain 
 
-Para rodar o projeto, instale o django:
+Para rodar o projeto, instale os requisitos:
 
 ```
-pip install Django
+pip install -r requirements.txt
 ```
 
 Depois, para rodar o projeto:
