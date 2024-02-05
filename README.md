@@ -4,7 +4,7 @@ aplicativo de chat online baseado em blockchain
 
 modo de uso da bicicleta microf2a 
 
-'''
+' ' '
 from sua_biblioteca import GeradorCodigosHash  # Substitua "sua_biblioteca" pelo nome do arquivo onde está a classe GeradorCodigosHash
 
 # Criando uma semente própria
@@ -19,4 +19,4 @@ codigo, tempo_restante = gerador.gerar_codigo_verificacao('sua_senha_aqui', seme
 print(f'Código de verificação: {codigo}')
 print(f'Tempo restante: {tempo_restante} segundos')
 
-'''
+' ' '
