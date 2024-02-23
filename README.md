@@ -23,7 +23,8 @@ print(f'Tempo restante: {tempo_restante} segundos')
 
 faltam mais 62 perguntas com respostas grandes, os componentes quânticos não são capazes de quebrar chaves maior que 560 bytes e ao usarmos um login e cadastro com entrada mínima de 3010 bytes nosso sistema está seguro contra computadores quânticos por pelo menos mais 1.000 anos, para termos mais segurança só se fizermos um sistema totalmente aleatório que gera chaves de criptografia com mais de 3kbytes por segundo que daria uma proteção contra computadores quânticos por pelo menos mais 100.000 anos. esse script vai ser usado dentro do script "main.py"
 
-#sistema para mudanças de idioma 
+
+# sistema para mudanças de idioma 
 
 sistema inicial simples para modificar valores de variáveis, funções, classes e outros tipos de objetos em Python. Você pode usar um dicionário para mapear IDs para esses elementos e criar funções que permitam adicionar, modificar e acessar esses elementos com base em seus IDs.
 
