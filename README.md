@@ -3,7 +3,8 @@ Blockchain-based online chat application
 aplicativo de chat online baseado em blockchain 
 
 # modo de uso da bicicleta microf2a :
-```
+
+```python
 from sua_biblioteca import GeradorCodigosHash  # Substitua "sua_biblioteca" pelo nome do arquivo onde está a classe GeradorCodigosHash
 
 # Criando uma semente própria
