@@ -27,7 +27,7 @@ class MainWindow(QMainWindow):
         self.webView.load(QUrl('file:///path/to/index1.html'))
 
     def loadPage2(self):
-        self.webView.load(QUrl('file:///path/to/index2.html'))
+        self.webView.load(QUrl('carteiras.html'))
 
     # Define more methods to load other pages
 
