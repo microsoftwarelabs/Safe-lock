@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carregar Carteira do Usuário</title>
+</head>
+<body>
+    <h1>Carregar Carteira do Usuário</h1>
+
+    <button onclick="loadWalletsFromFile()">Carregar Carteiras</button>
+
+    <script src="loadWallets.js"></script>
+
+
+    <script>
+        function loadWalletsFromFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const contents = event.target.result;
+                const wallets = contents.split('\n').map(wallet => wallet.trim());
+                console.log('Carteiras carregadas:', wallets);
+                // Aqui você pode fazer o que quiser com as carteiras carregadas
+
+                // Agora você pode chamar a função para obter o saldo das carteiras
+                getWalletsBalance(wallets);
+            };
+
+            reader.onerror = function(event) {
+                console.error('Erro ao carregar o arquivo:', event.target.error);
+            };
+
+            if (file) {
+                reader.readAsText(file);
+            } else {
+                console.error('Nenhum arquivo selecionado');
+            }
+        }
+
+        function getWalletsBalance(wallets) {
+            const provider = new Web3.providers.HttpProvider('https://bsc-dataseed.binance.org/'); // Infura Binance Smart Chain endpoint
+            const web3 = new Web3(provider);
+
+            wallets.forEach(walletAddress => {
+                web3.eth.getBalance(walletAddress, (error, balance) => {
+                    if (!error) {
+                        const balanceInBNB = web3.utils.fromWei(balance, 'ether');
+                        console.log('Saldo da carteira', walletAddress, 'BNB Smart:', balanceInBNB, 'BNB');
+                        // Faça o que quiser com o saldo aqui
+                    } else {
+                        console.error('Erro ao obter saldo da carteira', walletAddress, ':', error);
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
