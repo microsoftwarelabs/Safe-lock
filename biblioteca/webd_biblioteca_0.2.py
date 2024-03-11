@@ -8,10 +8,11 @@ from pgpy.errors import PGPError
 
 
 class CustomHTTPServer:
-    def self. __init__(self, host, port, public_key):
+    def self. __init__(self, host, port, public_key, pgp_public_key):
         self.host = host
         self.port = port
         self.public_key = public_key
+        self.pgp_public_key = pgp_public_key
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.socket.listen(1)
@@ -35,7 +36,7 @@ class CustomHTTPServer:
             
            # Verify the PGP signature
             if self.verify_pgp_signature(pgp_signature, f"{public_key}|{encrypted_url}"):
-                if public_key == self.public_key:
+                if pgp_public_key == self.pgp_public_key:
                     return client_socket, encrypted_url
                 else:
                     return None, "Invalid Public Key"
@@ -115,19 +116,15 @@ class CustomHTTPServer:
         # Return True if the signature is valid, False otherwise
                 # Lógica de verificação da assinatura PGP
         #from_blob(data) 
+        public_key = pgp_public_key_client
+        signature = pgp_public_key_client
+        data = data
+         
         
-        message = PGPMessage.from_blob(data)
-
-        # Carregar a chave pública 
-        key, _ = PGPKey.from_blob(public_key) 
-        verified = message.verify(key) if 
-        
-        verified: 
-            print("A assinatura PGP é válida.") 
-            else: 
-                print("A assinatura PGP é inválida.") 
-                except PGPError as e: 
-                    print("Erro ao verificar a assinatura PGP:", e)
+        punlic_key.verify(data, signature)
+                print("A assinatura PGP é válida.") 
+                except pgpy.errors.PGPError: 
+                    print("assinatura PGP invalida")
 
     def sign_pgp_data(self, data,private_key_passphrase, private_key):
         # Sign the data with the server's private PGP key
@@ -151,10 +148,11 @@ class CustomHTTPServer:
         print("Erro ao criar a assinatura PGP:", e)
 
 class CustomHTTPClient:
-    def __init__(self, host, port, public_key):
+    def __init__(self, host, port, public_key, pgp_public_key):
         self.host = host
         self.port = port
         self.public_key = public_key
+        self.pgp_public_key_client = pgp_public_key_client
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((self.host, self.port))
 
