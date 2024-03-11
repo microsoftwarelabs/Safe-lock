@@ -6,8 +6,8 @@ from pgpy.constants import PubKeyAlgorithm
 from pgpy.errors import PGPError
 
 
-Class WEBDServer     
-    def self. __init__(self, host, port, public_key, pgp_public_key):
+class WEBDServer     
+    def__init__(self, host, port, public_key, pgp_public_key):
         self.host = host
         self.port = port
         self.public_key = public_key
@@ -21,7 +21,7 @@ Class WEBDServer
         request_data = client_socket.recv(1024)
 
         # Decrypt the request using the server's private key
-        decrypted_request = rsa.decrypt(request_data, self.custom_response, self.CUSTOM_METHOD, self.private_key).decode('utf-8')
+        decrypted_request = rsa.decrypt(request_data, custom_response, self.CUSTOM_METHOD, self.private_key).decode('utf-8')
         
         # Parse the decrypted request
         request_parts = decrypted_request.split('|')
@@ -31,7 +31,6 @@ Class WEBDServer
             public_key = request_parts[1].strip()
             encrypted_url = request_parts[2].strip()
             pgp_signature = request_parts[3].strip()
-            #pgp_signature = request_parts[4].strip() 
             
            # Verify the PGP signature
             if self.verify_pgp_signature(pgp_signature, f"{public_key}|{encrypted_url}"):
@@ -39,10 +38,6 @@ Class WEBDServer
                     return client_socket, encrypted_url
                 else:
                     return None, "Invalid Public Key"
-            else:
-                return None, "Invalid PGP Signature"
-        else:
-            return None, "Invalid Request Format"
 
             if method == "CUSTOM_METHOD" and self.verify_pgp_signature(pgp_signature, f"{public_key}|{encrypted_data}"):
                 if public_key == self.public_key:
@@ -99,7 +94,7 @@ Class WEBDServer
             return custom_response
         else:
             return "Invalid PGP Signature"
-        client_socket.close()
+       # client_socket.close()
 
     def verify_pgp_signature(self, signature, data, pgp_public_key):
         try:
@@ -139,7 +134,7 @@ Class WEBDServer
         print("Erro ao criar a assinatura PGP:", e)
 
 class WEBDClient:
-    def __init__(self, host, port, public_key, pgp_public_key):
+    def__init__(self, host, port, public_key, pgp_public_key):
         self.host = host
         self.port = port
         self.public_key = public_key
