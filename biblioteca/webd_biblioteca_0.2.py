@@ -6,8 +6,7 @@ from pgpy.constants import PubKeyAlgorithm
 from pgpy.errors import PGPError
 
 
-
-class CustomHTTPServer:
+Class WEBDServer     
     def self. __init__(self, host, port, public_key, pgp_public_key):
         self.host = host
         self.port = port
@@ -23,7 +22,7 @@ class CustomHTTPServer:
 
         # Decrypt the request using the server's private key
         decrypted_request = rsa.decrypt(request_data, self.custom_response, self.CUSTOM_METHOD, self.private_key).decode('utf-8')
-
+        
         # Parse the decrypted request
         request_parts = decrypted_request.split('|')
 
@@ -56,7 +55,7 @@ class CustomHTTPServer:
             return None, "Invalid Request Format"
         
           if url_format.startswith("webs:") and self.verify_pgp_signature(pgp_signature, f"{public_key}|{encrypted_url}"):
-                if public_key == self.public_key:
+                if public_key == self.gpg_public_key:
                     return client_socket, encrypted_url
                 else:
                     return None, "Invalid Public Key"
@@ -76,15 +75,7 @@ class CustomHTTPServer:
         else:
             return None, "Invalid Request Format"
             
-            if method == "CUSTOM_METHOD" and self.verify_pgp_signature(pgp_signature, f"{public_key}|{encrypted_data}"):
-                if public_key == self.public_key:
-                    return client_socket, custom_command, url, encrypted_data
-                else:
-                    return None, "Invalid Public Key"
-            else:
-                return None, "Invalid Custom Method or PGP Signature"
-        else:
-            return None, "Invalid Request Format"
+            
 
     def send_response(self, custom_command, client_socket, response_data):
             
@@ -110,15 +101,15 @@ class CustomHTTPServer:
             return "Invalid PGP Signature"
         client_socket.close()
 
-    def verify_pgp_signature(self, signature, data, public_key):
+    def verify_pgp_signature(self, signature, data, pgp_public_key):
         try:
         # Verify the PGP signature using the client's public PGP key
         # Return True if the signature is valid, False otherwise
                 # Lógica de verificação da assinatura PGP
         #from_blob(data) 
-        public_key = pgp_public_key_client
-        signature = pgp_public_key_client
-        data = data
+        public_key = pgp_public_key
+        signature = pgpy.PGPSignature.form_file(data)
+        data = data(data)
          
         
         punlic_key.verify(data, signature)
@@ -147,7 +138,7 @@ class CustomHTTPServer:
     except PGPError as e:
         print("Erro ao criar a assinatura PGP:", e)
 
-class CustomHTTPClient:
+class WEBDClient:
     def __init__(self, host, port, public_key, pgp_public_key):
         self.host = host
         self.port = port
@@ -185,18 +176,15 @@ self.socket.sendall(encrypted_request)
         # Lógica de verificação da assinatura 
         try: 
             
-        message = PGPMessage.from_blob(data) 
+         public_key = pgp_public_key
+         signature = pgpy.PGPSignature.form_file(data)
+         data = data(data)
+         
         
-        # Carregar a chave pública 
-        key, _ = PGPKey.from_blob(public_key) 
-        verified = message.verify(key) if 
-        
-        verified: 
-            print("A assinatura PGP é válida.") 
-            else: 
-                print("A assinatura PGP é inválida.") 
-                except PGPError as e: 
-                    print("Erro ao verificar a assinatura PGP:", e) 
+        punlic_key.verify(data, signature)
+                print("A assinatura PGP é válida.") 
+                except pgpy.errors.PGPError: 
+                    print("assinatura PGP invalida") 
 
     def sign_pgp_data(self, data, private_key_passphrase, private_key):
         # Sign the data with the client's private PGP key
