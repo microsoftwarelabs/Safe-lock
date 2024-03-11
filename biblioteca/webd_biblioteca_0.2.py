@@ -107,7 +107,7 @@ class WEBDServer
         data = data(data)
          
         
-        punlic_key.verify(data, signature)
+        public_key.verify(data, signature)
                 print("A assinatura PGP é válida.") 
                 except pgpy.errors.PGPError: 
                     print("assinatura PGP invalida")
@@ -118,7 +118,7 @@ class WEBDServer
         # Lógica de assinatura PGP
     try:
         # Carregar a chave privada
-        key, _ = PGPKey.from_blob(private_key)
+        key, _ = pgpy.PGPKey.from_blob(private_key)
         key.unlock(private_key_passphrase)
 
         # Criar a mensagem com os dados
@@ -173,10 +173,10 @@ self.socket.sendall(encrypted_request)
             
          public_key = pgp_public_key
          signature = pgpy.PGPSignature.form_file(data)
-         data = data(data)
+         data = data
          
         
-        punlic_key.verify(data, signature)
+        public_key.verify(data, signature)
                 print("A assinatura PGP é válida.") 
                 except pgpy.errors.PGPError: 
                     print("assinatura PGP invalida") 
@@ -186,7 +186,7 @@ self.socket.sendall(encrypted_request)
         # Return the PGP signature
     try:
         # Carregar a chave privada
-        key, _ = PGPKey.from_blob(private_key)
+        key, _ = pgpy.PGPKey.from_blob(private_key)
         key.unlock(private_key_passphrase)
 
         # Criar a mensagem com os dados
