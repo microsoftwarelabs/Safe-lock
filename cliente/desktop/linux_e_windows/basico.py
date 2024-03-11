@@ -19,6 +19,20 @@ class MainWindow(QMainWindow):
         self.button2.clicked.connect(self.loadPage2)
         self.button2.setGeometry(200, 500, 100, 40)
 
+        self.button1 = QPushButton('Button 3', self)
+        self.button1.clicked.connect(self.loadPage3)
+        self.button1.setGeometry(50, 500, 100, 40)
+
+        self.button2 = QPushButton('Button 4', self)
+        self.button2.clicked.connect(self.loadPage4)
+        self.button2.setGeometry(200, 500, 100, 40)
+
+        
+        self.button1 = QPushButton('Button 5', self)
+        self.button1.clicked.connect(self.loadPage5)
+        self.button1.setGeometry(50, 500, 100, 40)
+
+        
         # Add more buttons as needed
 
         self.loadPage1()
@@ -29,6 +43,15 @@ class MainWindow(QMainWindow):
     def loadPage2(self):
         self.webView.load(QUrl('carteiras.html'))
 
+    def loadPage3(self):
+        self.webView.load(QUrl())
+
+    def loadPage4(self):
+        self.webView.load(QUrl())
+
+    def loadPage5(self):
+        self.webView.load(QUrl())
+    
     # Define more methods to load other pages
 
 if __name__ == '__main__':
