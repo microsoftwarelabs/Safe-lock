@@ -43,20 +43,13 @@ class WEBDServer
                 if public_key == self.public_key:
                     return client_socket, custom_command, url, encrypted_data
                 else:
-                    return None, "Invalid Public Key"
-            else:
-                return None, "Invalid Custom Method or PGP Signature"
-        else:
-            return None, "Invalid Request Format"
+                    return None, "Invalid "
         
           if url_format.startswith("webs:") and self.verify_pgp_signature(pgp_signature, f"{public_key}|{encrypted_url}"):
                 if public_key == self.gpg_public_key:
-                    return client_socket, encrypted_url
-                else:
-                    return None, "Invalid Public Key"
-            else:
-                return None, "Invalid URL Format or PGP Signature"
-        else:
+                    return client_socket, encrypted_url              
+            
+            else:
             return None, "Invalid Request Format"
 
             # Verify the PGP signature
@@ -65,11 +58,6 @@ class WEBDServer
                     return client_socket, encrypted_url
                 else:
                     return None, "Invalid Public Key"
-            else:
-                return None, "Invalid PGP Signature"
-        else:
-            return None, "Invalid Request Format"
-            
             
 
     def send_response(self, custom_command, client_socket, response_data):
@@ -83,13 +71,17 @@ class WEBDServer
         
         client_socket.sendall(encrypted_response)
         client_socket.close()
-        
+
         if custom_response == "command":
             encrypted_response = rsa.encrypt("command".encode('utf-8'), self.public_key)
         else:
             encrypted_response = rsa.encrypt(custom_response.encode('utf-8'), self.public_key)
-        client_socket.sendall(encrypted_response)
-        
+        client_socket.sendall(encrypted_response);
+
+        return encrypted_response
+
+      
+
         if self.verify_pgp_signature(pgp_signature, custom_response):
             return custom_response
         else:
@@ -145,12 +137,13 @@ class WEBDClient:
     def send_request(self, request_data):
         # Sign the request with the client's private PGP key
         # Encrypt the request with the server's public RSA key
+        
         pgp_signature = self.sign_pgp_data(request_data)
         encrypted_request = rsa.encrypt(f"{custom_command}|{url}|{self.public_key}|{request_data}|{pgp_signature}".encode('utf-8'), self.public_key)
 self.socket.sendall(encrypted_request)
 
     def receive_response(self):
-        encrypted_response = self.socket.recv(1024)
+        encrypted_response = self.socket.recv(3080)
         decrypted_response = rsa.decrypt(encrypted_response, self.private_key).decode('utf-8')
 
         response_parts = decrypted_response.split('|')
@@ -186,7 +179,7 @@ self.socket.sendall(encrypted_request)
         # Return the PGP signature
     try:
         # Carregar a chave privada
-        key, _ = pgpy.PGPKey.from_blob(private_key)
+        key, _ = pgpy.PGPKey.from_blob(pgp_private_key)
         key.unlock(private_key_passphrase)
 
         # Criar a mensagem com os dados
