@@ -1,0 +1,12 @@
+{
+  "blockchain": {
+    "initialSupply": 1000,
+    "defaultGasPrice": 10,
+    "ipfsGateway": "https://ipfs.infura.io:5001/api/v0"
+  },
+  "crypto": {
+    "mceliece": {
+      "keySize": 256
+    }
+  }
+}

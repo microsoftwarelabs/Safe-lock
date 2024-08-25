@@ -1,0 +1,10 @@
+[app]
+name = "mychain"
+# Outras configurações do aplicativo
+
+[store]
+# Configurações do armazenamento
+
+[wasm]
+contract_gas_limit = 1000000
+max_contract_size = 16384

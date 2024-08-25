@@ -1,0 +1,705 @@
+telas para implementar no app 
+
+#1
+
+### 2. **Modelos de Dados**
+
+Crie modelos de dados para chat, mensagens e usuários:
+
+```dart
+// models.dart
+
+class User {
+  final String id;
+  final String name;
+  bool isBlocked;
+
+  User({required this.id, required this.name, this.isBlocked = false});
+}
+
+class Message {
+  final String id;
+  final String text;
+  final User sender;
+  final MessageType type;
+  final DateTime timestamp;
+  final String? mediaUrl;
+
+  Message({
+    required this.id,
+    required this.text,
+    required this.sender,
+    required this.type,
+    required this.timestamp,
+    this.mediaUrl,
+  });
+}
+
+enum MessageType { text, image, video, sticker, audio, nft }
+
+class Conversation {
+  final String id;
+  final List<User> participants;
+  final List<Message> messages;
+  bool isBlocked;
+  bool isReported;
+
+  Conversation({
+    required this.id,
+    required this.participants,
+    this.messages = const [],
+    this.isBlocked = false,
+    this.isReported = false,
+  });
+}
+```
+
+### 3. **Gerenciamento de Estado**
+
+Crie uma classe para gerenciar conversas e usuários:
+
+```dart
+// chat_provider.dart
+
+import 'package:flutter/material.dart';
+import 'models.dart';
+
+class ChatProvider with ChangeNotifier {
+  List<Conversation> _conversations = [];
+  List<User> _users = [];
+
+  List<Conversation> get conversations => _conversations;
+  List<User> get users => _users;
+
+  void addConversation(Conversation conversation) {
+    _conversations.add(conversation);
+    notifyListeners();
+  }
+
+  void deleteConversation(String conversationId) {
+    _conversations.removeWhere((c) => c.id == conversationId);
+    notifyListeners();
+  }
+
+  void blockUser(String userId) {
+    final user = _users.firstWhere((u) => u.id == userId);
+    user.isBlocked = true;
+    notifyListeners();
+  }
+
+  void unblockUser(String userId) {
+    final user = _users.firstWhere((u) => u.id == userId);
+    user.isBlocked = false;
+    notifyListeners();
+  }
+
+  void blockConversation(String conversationId) {
+    final conversation = _conversations.firstWhere((c) => c.id == conversationId);
+    conversation.isBlocked = true;
+    notifyListeners();
+  }
+
+  void unblockConversation(String conversationId) {
+    final conversation = _conversations.firstWhere((c) => c.id == conversationId);
+    conversation.isBlocked = false;
+    notifyListeners();
+  }
+
+  void reportConversation(String conversationId) {
+    final conversation = _conversations.firstWhere((c) => c.id == conversationId);
+    conversation.isReported = true;
+    notifyListeners();
+  }
+
+  void sendMessage(String conversationId, Message message) {
+    final conversation = _conversations.firstWhere((c) => c.id == conversationId);
+    conversation.messages.add(message);
+    notifyListeners();
+  }
+
+  Future<void> sendMedia(String conversationId, MessageType type, String mediaPath) async {
+    final conversation = _conversations.firstWhere((c) => c.id == conversationId);
+    final message = Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      text: '',
+      sender: _users.first, // Replace with the current user
+      type: type,
+      timestamp: DateTime.now(),
+      mediaUrl: mediaPath,
+    );
+    conversation.messages.add(message);
+    notifyListeners();
+  }
+}
+```
+
+### 4. **Interface do Usuário**
+
+Aqui está um exemplo de como criar a interface para o chat com as funcionalidades mencionadas:
+
+```dart
+// main.dart
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'chat_provider.dart';
+import 'models.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => ChatProvider(),
+      child: MaterialApp(
+        home: ChatScreen(),
+      ),
+    );
+  }
+}
+
+class ChatScreen extends StatefulWidget {
+  @override
+  _ChatScreenState createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  late TextEditingController _messageController;
+  final ImagePicker _picker = ImagePicker();
+  FlutterSoundRecorder? _recorder;
+  bool _isRecording = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _messageController = TextEditingController();
+    _recorder = FlutterSoundRecorder();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _recorder?.closeRecorder();
+    super.dispose();
+  }
+
+  Future<void> _sendImage() async {
+    final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      // Send image
+      Provider.of<ChatProvider>(context, listen: false).sendMedia(
+        'conversation_id', // Replace with actual conversation ID
+        MessageType.image,
+        pickedFile.path,
+      );
+    }
+  }
+
+  Future<void> _sendVideo() async {
+    final pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      // Send video
+      Provider.of<ChatProvider>(context, listen: false).sendMedia(
+        'conversation_id', // Replace with actual conversation ID
+        MessageType.video,
+        pickedFile.path,
+      );
+    }
+  }
+
+  Future<void> _sendAudio() async {
+    if (_isRecording) {
+      final path = await _recorder!.stopRecorder();
+      if (path != null) {
+        // Send audio
+        Provider.of<ChatProvider>(context, listen: false).sendMedia(
+          'conversation_id', // Replace with actual conversation ID
+          MessageType.audio,
+          path,
+        );
+      }
+      setState(() {
+        _isRecording = false;
+      });
+    } else {
+      await _recorder!.startRecorder();
+      setState(() {
+        _isRecording = true;
+      });
+    }
+  }
+
+  Future<void> _sendNFT() async {
+    // This should be replaced with actual NFT sending logic
+    // For now, we'll just use a placeholder
+    final path = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['nft']);
+    if (path != null) {
+      // Send NFT
+      Provider.of<ChatProvider>(context, listen: false).sendMedia(
+        'conversation_id', // Replace with actual conversation ID
+        MessageType.nft,
+        path.files.single.path!,
+      );
+    }
+  }
+
+  void _reportConversation() {
+    Provider.of<ChatProvider>(context, listen: false).reportConversation('conversation_id'); // Replace with actual conversation ID
+  }
+
+  void _deleteConversation() {
+    Provider.of<ChatProvider>(context, listen: false).deleteConversation('conversation_id'); // Replace with actual conversation ID
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chatProvider = Provider.of<ChatProvider>(context);
+    final conversation = chatProvider.conversations.first; // Replace with actual conversation logic
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Chat'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.report_problem),
+            onPressed: _reportConversation,
+          ),
+          IconButton(
+            icon: Icon(Icons.delete),
+            onPressed: _deleteConversation,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: conversation.messages.length,
+              itemBuilder: (context, index) {
+                final message = conversation.messages[index];
+                return ListTile(
+                  title: message.type == MessageType.text
+                      ? Text(message.text)
+                      : message.type == MessageType.image
+                          ? Image.network(message.mediaUrl!)
+                          : message.type == MessageType.video
+                              ? VideoPlayerWidget(url: message.mediaUrl!)
+                              : message.type == MessageType.audio
+                                  ? AudioPlayerWidget(url: message.mediaUrl!)
+                                  : Text('NFT or Sticker'),
+                  subtitle: Text('By ${message.sender.name}'),
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: Icon(Icons.image),
+                  onPressed: _sendImage,
+                ),
+                IconButton(
+                  icon: Icon(Icons.video_collection),
+                  onPressed: _sendVideo,
+                ),
+                IconButton(
+                  icon: Icon(Icons.mic),
+                  onPressed: _sendAudio,
+                ),
+                IconButton(
+                  icon: Icon(Icons.nfc),
+                  onPressed: _sendNFT,
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Digite uma mensagem',
+                      suffixIcon: IconButton(
+                        icon: Icon(Icons.send),
+                        onPressed: () {
+                          final message = Message(
+                            id: DateTime.now().millisecondsSinceEpoch.toString(),
+                            text: _messageController.text,
+                            sender: chatProvider.users.first, // Replace with the current user
+                            type: MessageType.text,
+                            timestamp: DateTime.now(),
+                          );
+                          chatProvider.sendMessage('conversation_id', message); // Replace with actual conversation ID
+                          _messageController.clear();
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class VideoPlayerWidget extends StatefulWidget {
+  final String url;
+
+  VideoPlayerWidget({required this.url});
+
+  @override
+  _VideoPlayerWidgetState createState() => _VideoPlayerWidgetState();
+}
+
+class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
+  late VideoPlayerController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.network(widget.url)
+      ..initialize().then((_) {
+        setState(() {});
+      });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _controller.value.isInitialized
+        ? AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: VideoPlayer(_controller),
+          )
+        : Center(child: CircularProgressIndicator());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+}
+
+class AudioPlayerWidget extends StatefulWidget {
+  final String url;
+
+  AudioPlayerWidget({required this.url});
+
+  @override
+  _AudioPlayerWidgetState createState() => _AudioPlayerWidgetState();
+}
+
+class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
+  late FlutterSoundPlayer _audioPlayer;
+  bool _isPlaying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _audioPlayer = FlutterSoundPlayer();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+          onPressed: () async {
+            if (_isPlaying) {
+              await _audioPlayer.pausePlayer();
+              setState(() {
+                _isPlaying = false;
+              });
+            } else {
+              await _audioPlayer.startPlayer(fromURI: widget.url);
+              setState(() {
+                _isPlaying = true;
+              });
+            }
+          },
+        ),
+        Text(_isPlaying ? 'Playing...' : 'Play'),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer.closeAudioSession();
+    super.dispose();
+  }
+}
+
+
+#2
+
+```dart
+// settings_provider.dart
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class SettingsProvider with ChangeNotifier {
+  bool _isDarkMode = false;
+  double _maxVolume = 1.0; // Volume máximo entre 0.0 e 1.0
+  bool _isScreenshotBlocked = false;
+  bool _autoDownloadImages = true;
+  bool _autoDownloadVideos = true;
+  bool _autoDownloadAudio = true;
+  bool _notificationsEnabled = true;
+
+  bool get isDarkMode => _isDarkMode;
+  double get maxVolume => _maxVolume;
+  bool get isScreenshotBlocked => _isScreenshotBlocked;
+  bool get autoDownloadImages => _autoDownloadImages;
+  bool get autoDownloadVideos => _autoDownloadVideos;
+  bool get autoDownloadAudio => _autoDownloadAudio;
+  bool get notificationsEnabled => _notificationsEnabled;
+
+  Future<void> loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+    _maxVolume = prefs.getDouble('maxVolume') ?? 1.0;
+    _isScreenshotBlocked = prefs.getBool('isScreenshotBlocked') ?? false;
+    _autoDownloadImages = prefs.getBool('autoDownloadImages') ?? true;
+    _autoDownloadVideos = prefs.getBool('autoDownloadVideos') ?? true;
+    _autoDownloadAudio = prefs.getBool('autoDownloadAudio') ?? true;
+    _notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
+    notifyListeners();
+  }
+
+  Future<void> saveSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _isDarkMode);
+    await prefs.setDouble('maxVolume', _maxVolume);
+    await prefs.setBool('isScreenshotBlocked', _isScreenshotBlocked);
+    await prefs.setBool('autoDownloadImages', _autoDownloadImages);
+    await prefs.setBool('autoDownloadVideos', _autoDownloadVideos);
+    await prefs.setBool('autoDownloadAudio', _autoDownloadAudio);
+    await prefs.setBool('notificationsEnabled', _notificationsEnabled);
+  }
+
+  void toggleDarkMode(bool value) {
+    _isDarkMode = value;
+    saveSettings();
+    notifyListeners();
+  }
+
+  void setMaxVolume(double value) {
+    _maxVolume = value;
+    saveSettings();
+    notifyListeners();
+  }
+
+  void toggleScreenshotBlocking(bool value) {
+    _isScreenshotBlocked = value;
+    saveSettings();
+    notifyListeners();
+  }
+
+  void toggleAutoDownloadImages(bool value) {
+    _autoDownloadImages = value;
+    saveSettings();
+    notifyListeners();
+  }
+
+  void toggleAutoDownloadVideos(bool value) {
+    _autoDownloadVideos = value;
+    saveSettings();
+    notifyListeners();
+  }
+
+  void toggleAutoDownloadAudio(bool value) {
+    _autoDownloadAudio = value;
+    saveSettings();
+    notifyListeners();
+  }
+
+  void toggleNotifications(bool value) {
+    _notificationsEnabled = value;
+    saveSettings();
+    notifyListeners();
+  }
+}
+```
+
+### 3. **Tela de Configurações**
+
+Crie a tela de configurações com todas as opções:
+
+```dart
+// settings_screen.dart
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'settings_provider.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:screenshot/screenshot.dart';
+
+class SettingsScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<SettingsProvider>(
+      builder: (context, settings, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text('Configurações'),
+          ),
+          body: ListView(
+            padding: EdgeInsets.all(16),
+            children: [
+              // Tema
+              SwitchListTile(
+                title: Text('Modo Escuro'),
+                value: settings.isDarkMode,
+                onChanged: (value) => settings.toggleDarkMode(value),
+              ),
+              
+              // Volume Máximo
+              ListTile(
+                title: Text('Volume Máximo'),
+                subtitle: Slider(
+                  value: settings.maxVolume,
+                  min: 0.0,
+                  max: 1.0,
+                  onChanged: (value) => settings.setMaxVolume(value),
+                ),
+              ),
+              
+              // Bloquear Captura de Tela
+              SwitchListTile(
+                title: Text('Bloquear Captura de Tela'),
+                value: settings.isScreenshotBlocked,
+                onChanged: (value) => settings.toggleScreenshotBlocking(value),
+              ),
+              
+              // Download Automático
+              ExpansionTile(
+                title: Text('Download Automático'),
+                children: [
+                  SwitchListTile(
+                    title: Text('Imagens'),
+                    value: settings.autoDownloadImages,
+                    onChanged: (value) => settings.toggleAutoDownloadImages(value),
+                  ),
+                  SwitchListTile(
+                    title: Text('Vídeos'),
+                    value: settings.autoDownloadVideos,
+                    onChanged: (value) => settings.toggleAutoDownloadVideos(value),
+                  ),
+                  SwitchListTile(
+                    title: Text('Áudios'),
+                    value: settings.autoDownloadAudio,
+                    onChanged: (value) => settings.toggleAutoDownloadAudio(value),
+                  ),
+                ],
+              ),
+              
+              // Notificações
+              SwitchListTile(
+                title: Text('Notificações'),
+                value: settings.notificationsEnabled,
+                onChanged: (value) => settings.toggleNotifications(value),
+              ),
+              
+              // Termos e Contratos
+              ListTile(
+                title: Text('Termos e Contratos'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => TermsAndConditionsScreen()),
+                  );
+                },
+              ),
+              
+              // Chat de Suporte
+              ListTile(
+                title: Text('Chat de Suporte'),
+                onTap: () {
+                  // Navegar para a tela de suporte
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class TermsAndConditionsScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Termos e Contratos'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text('Aqui estão os termos e condições...'),
+      ),
+    );
+  }
+}
+```
+
+### 4. **Configuração de Permissões e Funcionalidades Adicionais**
+
+**Bloquear Captura de Tela:**
+
+Para bloquear capturas de tela, você pode usar a funcionalidade `WidgetsBindingObserver` e ajustar a configuração do tema para adicionar uma camada de proteção contra captura de tela. O Flutter não fornece uma solução nativa para bloquear capturas de tela diretamente, então você pode precisar de plugins nativos para isso em Android e iOS.
+
+**Notificações:**
+
+Para configurar notificações, você deve seguir a configuração básica do plugin `flutter_local_notifications`. Adicione o código necessário para inicializar e configurar as notificações.
+
+### Exemplo para Inicializar Notificações
+
+```dart
+// main.dart
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'settings_provider.dart';
+import 'settings_screen.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => SettingsProvider()..loadSettings(),
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return MaterialApp(
+            theme: settings.isDarkMode ? ThemeData.dark() : ThemeData.light(),
+            home: SettingsScreen(),
+          );
+        },
+      ),
+    );
+  }
+}
+```
+
+
+#3
+

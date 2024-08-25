@@ -1,0 +1,22 @@
+{
+  "name": "blockchain-app",
+  "version": "1.0.0",
+  "description": "Um aplicativo de blockchain com criptografia McEliece e integração com IPFS.",
+  "main": "dist/blockchain.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/blockchain.js",
+    "dev": "tsc && node dist/blockchain.js"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "ipfs-http-client": "^56.1.0",
+    "mceliece": "latest"  // Substitua por uma versão real quando disponível
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0", // Verifique a versão mais recente do TypeScript
+    "@types/node": "^20.0.0" // Adicione tipos para Node.js
+  },
+  "author": "Seu Nome",
+  "license": "MIT"
+}

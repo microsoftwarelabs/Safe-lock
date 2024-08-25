@@ -1,0 +1,33 @@
+name: safe_lock_messenger
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '^3.5.0-323.2.beta'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Add other dependencies as needed
+
+  flutter_windowmanager: ^0.1.0
+  flutter_secure_storage: ^4.2.1
+  fluttertoast: ^8.0.9
+  flutter_screenutil: ^5.0.1+2
+  provider: ^6.1.2
+  image_picker: ^0.8.7
+  video_player: ^2.6.2
+  permission_handler: ^11.2.0
+  file_picker: ^5.1.1
+  flutter_sound: ^9.11.3
+  flutter_sound_platform_interface: ^9.11.3
+  flutter_sound_web: ^9.11.3
+  shared_preferences: ^2.1.0
+  flutter_local_notifications: ^15.1.0
+  screenshot: ^1.0.0
+  webview_flutter: ^4.9.0
+  

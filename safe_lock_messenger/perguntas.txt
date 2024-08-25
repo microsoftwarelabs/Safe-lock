@@ -1,0 +1,763 @@
+
+```
+mychain/
+├── main.go
+├── app/
+│   ├── app.go
+│   ├── handlers.go [X]
+│   └── keeper.go   [X]
+├── pkg/
+├── x/
+│   ├── transactions/
+│   │   ├── handler.go
+│   │   ├──keeper.go [X]
+│   │   └── types/
+|   |       |_______types.go
+│   ├── nft/
+│   │   ├── handler.go
+│   │   ├── keeper/
+│   │   │   ├── keeper.go
+│   │   └── types/
+|   |       |_______types.go
+│   ├── store/
+│   │   ├── handler.go
+│   │   ├── keeper/
+│   │   │   ├── keeper.go
+│   │   └── types/
+|   |       |_______types.go
+│   └── mining/
+│       ├── handler.go
+│       ├── keeper.go [X]
+│       └── types/
+|       |_______types.go
+└── config.toml
+```
+# main.go `safe lock blockchain/main.go`
+
+``` go
+
+import (
+    "github.com/CosmWasm/wasmd/x/wasm"
+    "github.com/CosmWasm/wasmd/x/wasm/keeper"
+    "github.com/myorg/mychain/x/nft"
+    "github.com/myorg/mychain/x/token_swap"
+    "github.com/myorg/mychain/x/staking"
+    "github.com/cosmos/cosmos-sdk/baseapp"
+    "github.com/cosmos/cosmos-sdk/store"
+    "github.com/cosmos/cosmos-sdk/codec"
+    "github.com/cosmos/cosmos-sdk/x/auth"
+    "github.com/cosmos/cosmos-sdk/x/bank"
+    // outros imports
+)
+
+func NewApp(logger log.Logger, db db.DB) *App {
+    cdc := codec.NewLegacyAmino()
+    keyMain := sdk.NewKVStoreKey("main")
+    keyWasm := sdk.NewKVStoreKey(wasm.StoreKey)
+    keyNFT := sdk.NewKVStoreKey(nft.ModuleName)
+    keyTokenSwap := sdk.NewKVStoreKey(token_swap.ModuleName)
+    keyStaking := sdk.NewKVStoreKey(staking.ModuleName)
+
+    app := baseapp.NewBaseApp("mychain", logger, db, cdc)
+
+    // Criar Keepers
+    nftKeeper := nft.NewKeeper(cdc, keyNFT)
+    tokenSwapKeeper := token_swap.NewKeeper(cdc, keyTokenSwap)
+    stakingKeeper := staking.NewKeeper(cdc, keyStaking)
+    wasmKeeper := wasm.NewKeeper(
+        cdc,
+        keyWasm,
+    )
+
+    // Configurar o BaseApp e adicionar módulos
+    app.Router().
+        AddRoute(nft.ModuleName, nft.NewHandler(nftKeeper)).
+        AddRoute(token_swap.ModuleName, token_swap.NewHandler(tokenSwapKeeper)).
+        AddRoute(staking.ModuleName, staking.NewHandler(stakingKeeper)).
+        AddRoute(wasm.ModuleName, wasm.NewHandler(wasmKeeper))
+
+    app.SetInitChainer(func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+        // Inicialize o estado do aplicativo se necessário
+        return abci.ResponseInitChain{}
+    })
+
+    app.SetEndBlocker(func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+        // Finalize o bloco e faça o processamento final
+        return abci.ResponseEndBlock{}
+    })
+
+    app.SetAnteHandler(auth.NewAnteHandler(auth.NewAccountKeeper(cdc, keyMain), auth.NewBankKeeper(cdc, keyMain)))
+
+    // Configuração de store
+    app.MountStores(keyMain, keyWasm, keyNFT, keyTokenSwap, keyStaking)
+
+    return &App{
+        BaseApp:     app,
+        cdc:         cdc,
+        keyNFT:      keyNFT,
+        nftKeeper:   nftKeeper,
+        keyTokenSwap: keyTokenSwap,
+        tokenSwapKeeper: tokenSwapKeeper,
+        keyStaking:  keyStaking,
+        stakingKeeper: stakingKeeper,
+        keyWasm:     keyWasm,
+        wasmKeeper:  wasmKeeper,
+    }
+}
+
+```
+# app.go `app/app.go`
+
+```go
+import (
+    "github.com/myorg/mychain/x/nft"
+    "github.com/myorg/mychain/x/token_swap"
+    "github.com/myorg/mychain/x/staking"
+    "github.com/CosmWasm/wasmd/x/wasm"
+    "github.com/cosmos/cosmos-sdk/codec"
+    "github.com/cosmos/cosmos-sdk/x/auth"
+    "github.com/cosmos/cosmos-sdk/x/bank"
+    sdk "github.com/cosmos/cosmos-sdk/types"
+    baseapp "github.com/cosmos/cosmos-sdk/baseapp"
+    abci "github.com/tendermint/tendermint/abci/types"
+    "github.com/cosmos/cosmos-sdk/store"
+)
+
+type App struct {
+    *baseapp.BaseApp
+    cdc             *codec.Codec
+    keyNFT          *sdk.KVStoreKey
+    nftKeeper       nft.Keeper
+    keyTokenSwap    *sdk.KVStoreKey
+    tokenSwapKeeper token_swap.Keeper
+    keyStaking      *sdk.KVStoreKey
+    stakingKeeper   staking.Keeper
+    keyWasm         *sdk.KVStoreKey
+    wasmKeeper      wasm.Keeper
+}
+
+// Nova instância de App com o módulo CosmWasm
+func NewApp(logger log.Logger, db db.DB) *App {
+    cdc := codec.NewLegacyAmino()
+    keyMain := sdk.NewKVStoreKey("main")
+    keyWasm := sdk.NewKVStoreKey(wasm.StoreKey)
+    keyNFT := sdk.NewKVStoreKey(nft.ModuleName)
+    keyTokenSwap := sdk.NewKVStoreKey(token_swap.ModuleName)
+    keyStaking := sdk.NewKVStoreKey(staking.ModuleName)
+
+    app := baseapp.NewBaseApp("mychain", logger, db, cdc)
+
+    // Criar Keepers
+    nftKeeper := nft.NewKeeper(cdc, keyNFT)
+    tokenSwapKeeper := token_swap.NewKeeper(cdc, keyTokenSwap)
+    stakingKeeper := staking.NewKeeper(cdc, keyStaking)
+    wasmKeeper := wasm.NewKeeper(
+        cdc,
+        keyWasm,
+        wasm.DefaultGasLimit,   // Limite de gás padrão
+        wasm.DefaultMaxContractSize, // Tamanho máximo de contrato
+    )
+
+    // Configurar o BaseApp e adicionar módulos
+    app.Router().
+        AddRoute(nft.ModuleName, nft.NewHandler(nftKeeper)).
+        AddRoute(token_swap.ModuleName, token_swap.NewHandler(tokenSwapKeeper)).
+        AddRoute(staking.ModuleName, staking.NewHandler(stakingKeeper)).
+        AddRoute(wasm.ModuleName, wasm.NewHandler(wasmKeeper))
+
+    app.SetInitChainer(func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+        // Inicialize o estado do aplicativo se necessário
+        return abci.ResponseInitChain{}
+    })
+
+    app.SetEndBlocker(func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+        // Finalize o bloco e faça o processamento final
+        return abci.ResponseEndBlock{}
+    })
+
+    app.SetAnteHandler(auth.NewAnteHandler(auth.NewAccountKeeper(cdc, keyMain), auth.NewBankKeeper(cdc, keyMain)))
+
+    // Configuração de store
+    app.MountStores(keyMain, keyWasm, keyNFT, keyTokenSwap, keyStaking)
+
+    return &App{
+        BaseApp:         app,
+        cdc:             cdc,
+        keyNFT:          keyNFT,
+        nftKeeper:       nftKeeper,
+        keyTokenSwap:    keyTokenSwap,
+        tokenSwapKeeper: tokenSwapKeeper,
+        keyStaking:      keyStaking,
+        stakingKeeper:   stakingKeeper,
+        keyWasm:         keyWasm,
+        wasmKeeper:      wasmKeeper,
+    }
+}
+
+```
+# types.go `x/mining/types/types.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+    ModuleName = "mining"
+    StoreKey   = ModuleName
+)
+
+type MsgMine struct {
+    Creator string
+    Difficulty int // PoW difficulty level
+}
+
+func (msg MsgMine) Route() string { return ModuleName }
+func (msg MsgMine) Type() string  { return "mine" }
+
+```
+# handler.go `x/mining/handler.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+    ModuleName = "mining"
+    StoreKey   = ModuleName
+)
+
+type MsgMine struct {
+    Creator string
+    Difficulty int // PoW difficulty level
+}
+
+func (msg MsgMine) Route() string { return ModuleName }
+func (msg MsgMine) Type() string  { return "mine" }
+
+```
+# keeper.go `x/nft/keeper.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+    "github.com/myorg/mychain/x/nft/types"
+)
+
+type Keeper struct {
+    storeKey sdk.StoreKey
+    cdc      *codec.Codec
+}
+
+func NewKeeper(cdc *codec.Codec, storeKey sdk.StoreKey) Keeper {
+    return Keeper{
+        storeKey: storeKey,
+        cdc:      cdc,
+    }
+}
+
+func (k Keeper) GetNFT(ctx sdk.Context, id string) (types.NFT, bool) {
+    store := ctx.KVStore(k.storeKey)
+    bytes := store.Get([]byte(id))
+    if bytes == nil {
+        return types.NFT{}, false
+    }
+
+    var nft types.NFT
+    k.cdc.MustUnmarshalBinaryBare(bytes, &nft)
+    return nft, true
+}
+
+func (k Keeper) SetNFT(ctx sdk.Context, nft types.NFT) {
+    store := ctx.KVStore(k.storeKey)
+    store.Set([]byte(nft.Id), k.cdc.MustMarshalBinaryBare(&nft))
+}
+
+func (k Keeper) DeleteNFT(ctx sdk.Context, id string) {
+    store := ctx.KVStore(k.storeKey)
+    store.Delete([]byte(id))
+}
+
+func (k Keeper) IncreaseRarity(ctx sdk.Context, id string) error {
+    nft, found := k.GetNFT(ctx, id)
+    if !found {
+        return sdk.ErrUnknownRequest("NFT not found")
+    }
+
+    nft.Rarity += 1
+    k.SetNFT(ctx, nft)
+    return nil
+}
+
+```
+
+# msgs.go `x/nft/types/msgs.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+    TypeMsgMint = "mint"
+    TypeMsgBurn = "burn"
+)
+
+type MsgMint struct {
+    Id       string `json:"id"`
+    Name     string `json:"name"`
+    ImageUrl string `json:"image_url"`
+    Fee      int64  `json:"fee"`
+    Creator  sdk.AccAddress `json:"creator"`
+}
+
+func NewMsgMint(id, name, imageUrl string, fee int64, creator sdk.AccAddress) MsgMint {
+    return MsgMint{
+        Id:       id,
+        Name:     name,
+        ImageUrl: imageUrl,
+        Fee:      fee,
+        Creator:  creator,
+    }
+}
+
+func (msg MsgMint) Route() string { return RouterKey }
+func (msg MsgMint) Type() string  { return TypeMsgMint }
+func (msg MsgMint) ValidateBasic() error {
+    if msg.Id == "" || msg.Name == "" || msg.Creator.Empty() {
+        return sdk.ErrInvalidAddress(msg.Creator.String())
+    }
+    return nil
+}
+
+type MsgBurn struct {
+    Id       string `json:"id"`
+    Fee      int64  `json:"fee"`
+    Creator  sdk.AccAddress `json:"creator"`
+}
+
+func NewMsgBurn(id string, fee int64, creator sdk.AccAddress) MsgBurn {
+    return MsgBurn{
+        Id:       id,
+        Fee:      fee,
+        Creator:  creator,
+    }
+}
+
+func (msg MsgBurn) Route() string { return RouterKey }
+func (msg MsgBurn) Type() string  { return TypeMsgBurn }
+func (msg MsgBurn) ValidateBasic() error {
+    if msg.Id == "" || msg.Creator.Empty() {
+        return sdk.ErrInvalidAddress(msg.Creator.String())
+    }
+    return nil
+}
+
+```
+
+# types.go `x/nft/types/types.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+type NFT struct {
+    Id       string         `json:"id"`
+    Name     string         `json:"name"`
+    ImageUrl string         `json:"image_url"`
+    Rarity   int            `json:"rarity"`
+}
+
+func NewNFT(id, name, imageUrl string, rarity int) NFT {
+    return NFT{
+        Id:       id,
+        Name:     name,
+        ImageUrl: imageUrl,
+        Rarity:   rarity,
+    }
+}
+
+func (nft NFT) Validate() error {
+    if nft.Id == "" || nft.Name == "" {
+        return sdk.ErrUnknownRequest("NFT ID and Name cannot be empty")
+    }
+    return nil
+}
+
+```
+
+# handler.go `x/nft/handler.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+    "github.com/myorg/mychain/x/nft/types"
+)
+
+func handleMsgMint(ctx sdk.Context, k Keeper, msg types.MsgMint) sdk.Result {
+    nft := types.NewNFT(msg.Id, msg.Name, msg.ImageUrl, 0)
+
+    // Deduz taxa de "mynftcoin"
+    fee := sdk.NewCoin("mynftcoin", sdk.NewInt(msg.Fee))
+    account := k.accountKeeper.GetAccount(ctx, msg.Creator)
+    if !account.GetCoins().IsAllGTE(sdk.Coins{fee}) {
+        return sdk.ErrInsufficientFunds("Insufficient funds for minting NFT").Result()
+    }
+
+    account.SetCoins(account.GetCoins().Sub(fee))
+    k.accountKeeper.SetAccount(ctx, account)
+
+    // Cunha o NFT
+    k.SetNFT(ctx, nft)
+
+    return sdk.Result{}
+}
+
+func handleMsgBurn(ctx sdk.Context, k Keeper, msg types.MsgBurn) sdk.Result {
+    nft, found := k.GetNFT(ctx, msg.Id)
+    if !found {
+        return sdk.ErrUnknownRequest("NFT not found").Result()
+    }
+
+    // Deduz taxa de "mycoin"
+    fee := sdk.NewCoin("mycoin", sdk.NewInt(msg.Fee))
+    account := k.accountKeeper.GetAccount(ctx, msg.Creator)
+    if !account.GetCoins().IsAllGTE(sdk.Coins{fee}) {
+        return sdk.ErrInsufficientFunds("Insufficient funds for burning NFT").Result()
+    }
+
+    account.SetCoins(account.GetCoins().Sub(fee))
+    k.accountKeeper.SetAccount(ctx, account)
+
+    // Deleta o NFT e aumenta a raridade
+    k.DeleteNFT(ctx, msg.Id)
+    err := k.IncreaseRarity(ctx, msg.Id)
+    if err != nil {
+        return err.Result()
+    }
+
+    return sdk.Result{}
+}
+
+```
+# staking `x/staking/keeper/keeper.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+type Keeper struct {
+    storeKey sdk.StoreKey
+    cdc      *codec.Codec
+}
+
+func NewKeeper(cdc *codec.Codec, storeKey sdk.StoreKey) Keeper {
+    return Keeper{
+        storeKey: storeKey,
+        cdc:      cdc,
+    }
+}
+
+func (k Keeper) StakeMyNFTCoin(ctx sdk.Context, amount sdk.Int) error {
+    // Lógica para staking de mynftcoin
+    return nil
+}
+
+```
+
+# msgs.go `x/staking/types/msgs.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+    TypeMsgStakeMyNFTCoin = "stake_mynftcoin"
+)
+
+type MsgStakeMyNFTCoin struct {
+    Amount sdk.Int `json:"amount"`
+    Staker sdk.AccAddress `json:"staker"`
+}
+
+func NewMsgStakeMyNFTCoin(amount sdk.Int, staker sdk.AccAddress) MsgStakeMyNFTCoin {
+    return MsgStakeMyNFTCoin{
+        Amount: amount,
+        Staker: staker,
+    }
+}
+
+func (msg MsgStakeMyNFTCoin) Route() string { return RouterKey }
+func (msg MsgStakeMyNFTCoin) Type() string  { return TypeMsgStakeMyNFTCoin }
+func (msg MsgStakeMyNFTCoin) ValidateBasic() error {
+    if msg.Amount.IsNegative() || msg.Staker.Empty() {
+        return sdk.ErrInvalidAddress(msg.Staker.String())
+    }
+    return nil
+}
+
+```
+# handler.go `x/staking/handler.go`
+
+````go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+    "github.com/myorg/mychain/x/staking/types"
+)
+
+func handleMsgStakeMyNFTCoin(ctx sdk.Context, k Keeper, msg types.MsgStakeMyNFTCoin) sdk.Result {
+    err := k.StakeMyNFTCoin(ctx, msg.Amount)
+    if err != nil {
+        return err.Result()
+    }
+
+    return sdk.Result{}
+}
+
+```
+
+# keeper.go `x/token_swap/keeper/keeper.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+type Keeper struct {
+    storeKey sdk.StoreKey
+    cdc      *codec.Codec
+}
+
+func NewKeeper(cdc *codec.Codec, storeKey sdk.StoreKey) Keeper {
+    return Keeper{
+        storeKey: storeKey,
+        cdc:      cdc,
+    }
+}
+
+// Funções de troca de tokens (MATIC por mycoin e ETH por my) podem ser implementadas aqui
+func (k Keeper) SwapMaticForMyCoin(ctx sdk.Context, amount sdk.Int) error {
+    // Lógica para trocar MATIC por mycoin
+    return nil
+}
+
+func (k Keeper) SwapEthForMy(ctx sdk.Context, amount sdk.Int) error {
+    // Lógica para trocar ETH por my
+    return nil
+}
+
+```
+
+# msgs.go `x/token_swap/types/msgs.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+    TypeMsgSwapMaticForMyCoin = "swap_matic_for_mycoin"
+    TypeMsgSwapEthForMy       = "swap_eth_for_my"
+)
+
+type MsgSwapMaticForMyCoin struct {
+    Amount sdk.Int `json:"amount"`
+    Creator sdk.AccAddress `json:"creator"`
+}
+
+func NewMsgSwapMaticForMyCoin(amount sdk.Int, creator sdk.AccAddress) MsgSwapMaticForMyCoin {
+    return MsgSwapMaticForMyCoin{
+        Amount: amount,
+        Creator: creator,
+    }
+}
+
+func (msg MsgSwapMaticForMyCoin) Route() string { return RouterKey }
+func (msg MsgSwapMaticForMyCoin) Type() string  { return TypeMsgSwapMaticForMyCoin }
+func (msg MsgSwapMaticForMyCoin) ValidateBasic() error {
+    if msg.Amount.IsNegative() || msg.Creator.Empty() {
+        return sdk.ErrInvalidAddress(msg.Creator.String())
+    }
+    return nil
+}
+
+type MsgSwapEthForMy struct {
+    Amount sdk.Int `json:"amount"`
+    Creator sdk.AccAddress `json:"creator"`
+}
+
+func NewMsgSwapEthForMy(amount sdk.Int, creator sdk.AccAddress) MsgSwapEthForMy {
+    return MsgSwapEthForMy{
+        Amount: amount,
+        Creator: creator,
+    }
+}
+
+func (msg MsgSwapEthForMy) Route() string { return RouterKey }
+func (msg MsgSwapEthForMy) Type() string  { return TypeMsgSwapEthForMy }
+func (msg MsgSwapEthForMy) ValidateBasic() error {
+    if msg.Amount.IsNegative() || msg.Creator.Empty() {
+        return sdk.ErrInvalidAddress(msg.Creator.String())
+    }
+    return nil
+}
+
+```
+
+# handler.go `x/token_swap/handler.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+    "github.com/myorg/mychain/x/token_swap/types"
+)
+
+func handleMsgSwapMaticForMyCoin(ctx sdk.Context, k Keeper, msg types.MsgSwapMaticForMyCoin) sdk.Result {
+    err := k.SwapMaticForMyCoin(ctx, msg.Amount)
+    if err != nil {
+        return err.Result()
+    }
+
+    return sdk.Result{}
+}
+
+func handleMsgSwapEthForMy(ctx sdk.Context, k Keeper, msg types.MsgSwapEthForMy) sdk.Result {
+    err := k.SwapEthForMy(ctx, msg.Amount)
+    if err != nil {
+        return err.Result()
+    }
+
+    return sdk.Result{}
+}
+
+```
+
+# types.go `x/transactions/types/types.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+const (
+    ModuleName = "transactions"
+    StoreKey   = ModuleName
+)
+
+type MsgDeposit struct {
+    Creator string
+    Amount   int64
+}
+
+type MsgWithdraw struct {
+    Creator string
+    Amount   int64
+}
+
+func (msg MsgDeposit) Route() string { return ModuleName }
+func (msg MsgDeposit) Type() string  { return "deposit" }
+
+func (msg MsgWithdraw) Route() string { return ModuleName }
+func (msg MsgWithdraw) Type() string  { return "withdraw" }
+
+```
+
+# handler.go `x/transactions/handler.go`
+
+```go
+
+import (
+    sdk "github.com/cosmos/cosmos-sdk/types"
+    "github.com/myorg/mychain/x/transactions/types"
+)
+
+func handleMsgDeposit(ctx sdk.Context, msg types.MsgDeposit, k Keeper) sdk.Result {
+    account := k.GetAccount(ctx, msg.Creator)
+    deposit := sdk.NewCoin("mycoin", sdk.NewInt(msg.Amount))
+    
+    if !account.GetCoins().IsAllGTE(sdk.Coins{deposit}) {
+        return sdk.ErrInsufficientFunds("Insufficient funds for deposit").Result()
+    }
+
+    account.SetCoins(account.GetCoins().Add(deposit))
+    k.SetAccount(ctx, account)
+
+    ctx.EventManager().EmitEvent(
+        sdk.NewEvent(
+            types.EventTypeDeposit,
+            sdk.NewAttribute(types.AttributeKeyDepositor, msg.Creator),
+            sdk.NewAttribute(types.AttributeKeyAmount, deposit.String()),
+        ),
+    )
+
+    return sdk.Result{}
+}
+
+func handleMsgWithdraw(ctx sdk.Context, msg types.MsgWithdraw, k Keeper) sdk.Result {
+    account := k.GetAccount(ctx, msg.Creator)
+    withdrawal := sdk.NewCoin("mycoin", sdk.NewInt(msg.Amount))
+    
+    if !account.GetCoins().IsAllGTE(sdk.Coins{withdrawal}) {
+        return sdk.ErrInsufficientFunds("Insufficient funds for withdrawal").Result()
+    }
+    
+    if !account.GetCoins().IsAllGTE(sdk.Coins{
+        sdk.NewCoin("mycoin", sdk.NewInt(10)), // Example withdrawal fee
+        sdk.NewCoin("mynftcoin", sdk.NewInt(1)), // Example condition
+    }) {
+        return sdk.ErrInsufficientFunds("Insufficient mycoin or mynftcoin for withdrawal").Result()
+    }
+    
+    account.SetCoins(account.GetCoins().Sub(withdrawal))
+    k.SetAccount(ctx, account)
+    
+    fee := sdk.NewCoin("mycoin", sdk.NewInt(2))
+    account.SetCoins(account.GetCoins().Sub(fee))
+    k.SetAccount(ctx, account)
+    
+    ctx.EventManager().EmitEvent(
+        sdk.NewEvent(
+            types.EventTypeWithdraw,
+            sdk.NewAttribute(types.AttributeKeyWithdrawer, msg.Creator),
+            sdk.NewAttribute(types.AttributeKeyAmount, withdrawal.String()),
+        ),
+    )
+    
+    return sdk.Result{}
+}
+
+```
+
+# config.toml `safe lock blockchain/config.toml`
+
+```toml
+
+[app]
+name = "mychain"
+# Outras configurações do aplicativo
+
+[store]
+# Configurações do armazenamento
+
+[wasm]
+contract_gas_limit = 1000000
+max_contract_size = 16384
+
+```
